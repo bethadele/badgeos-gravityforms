@@ -68,6 +68,13 @@ class BadgeOS_GravityForms {
 			// 'learndash_course_completed' => __( 'Completed Course', 'badgeos-learndash' )
 		);
 
+		// $this->actions = array(
+ 		// 		'gform_after_submission' => array(
+		// 		'actions' => array(
+		// 			'badgeos_gravityform_field_completed_specific'
+		// 		)
+		// )
+
     add_action( 'plugins_loaded', array( $this, 'plugins_loaded' ), 11 );
 
 	}

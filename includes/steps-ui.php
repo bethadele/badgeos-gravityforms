@@ -25,6 +25,7 @@ function badgeos_gravityforms_step_requirements( $requirements, $step_id ) {
 	$requirements[ 'gravityforms_trigger' ] = get_post_meta( $step_id, '_badgeos_gravityforms_trigger', true );
 	$requirements[ 'gravityforms_object_id' ] = (int) get_post_meta( $step_id, '_badgeos_gravityforms_object_id', true );
 	$requirements[ 'gravityforms_object_arg1' ] = (int) get_post_meta( $step_id, '_badgeos_gravityforms_object_arg1', true );
+	$requirements[ 'gravityforms_object_arg2' ] = get_post_meta( $step_id, '_badgeos_gravityforms_object_arg2', true );
 
 	// Return the requirements array
 	return $requirements;
@@ -109,6 +110,14 @@ function badgeos_gravityforms_step_etc_select( $step_id, $post_id ) {
 	$current_trigger = get_post_meta( $step_id, '_badgeos_gravityforms_trigger', true );
 	$current_object_id = (int) get_post_meta( $step_id, '_badgeos_gravityforms_object_id', true );
 	$current_object_arg1 = (int) get_post_meta( $step_id, '_badgeos_gravityforms_object_arg1', true );
+	$current_object_arg2 = get_post_meta( $step_id, '_badgeos_gravityforms_object_arg2', true );
+
+	$current_object_arg1 = empty($current_object_arg1)
+		? ''
+		: $current_object_arg1;
+	$current_object_arg2 = empty($current_object_arg2)
+		? ''
+		: $current_object_arg2;
 
 	// Forms
 	echo '<select name="badgeos_gravityforms_form_id" class="select-form-id">';
@@ -116,24 +125,29 @@ function badgeos_gravityforms_step_etc_select( $step_id, $post_id ) {
 
 	// Loop through all objects
 	$objects = GFAPI::get_forms();
-	// $objects = get_posts( array(
-	// 	'post_type' => 'gfforms-entry',
-	// 	'post_status' => 'publish',
-	// 	'posts_per_page' => -1
-	// ) );
-
+	$field_select = '';
 	if ( !empty( $objects ) ) {
 		foreach ( $objects as $object ) {
 			$selected = '';
 
-			if ( in_array( $current_trigger, array( 'gform_after_submission', 'badgeos_gravityforms_form_completed_specific' ) ) )
+			if ( in_array( $current_trigger, array( 'gform_after_submission' ) ) ) {
 				$selected = selected( $current_object_id, $object['id'], false );
+			}
 
 			echo '<option' . $selected . ' value="' . $object['id'] . '">' . esc_html( $object['title'] ) . '</option>';
 		}
 	}
 
 	echo '</select>';
+	echo '<input name="badgeos_gravityforms_field_id" class="input-field-id" placeholder="Field ID" value="' . $current_object_arg1 . '" />';
+	echo '<input name="badgeos_gravityforms_field_value" class="input-field-value" placeholder="Field Value" value="' . $current_object_arg2 . '" />';
+
+	// $field_select = '<select name="badgeos_gravityforms_field_id" class="select-field-id">'
+	// 							. '<option value="">' . __( 'Any Field', 'badgeos-gravityforms' )
+	// 							. $field_select
+	// 							. '</select>';
+
+	// $field_input = '<input name="badgeos_gravityforms_field_value" class="input-field-value">';
 
 	// if ( in_array( $current_trigger, array( 'badgeos_gravityforms_form_completed_specific' ) ) )
 	// 	$gffield = (int) $current_object_arg1;
@@ -265,11 +279,14 @@ function badgeos_gravityforms_save_step( $title, $step_id, $step_data ) {
 
 		$object_id = 0;
 		$object_arg1 = 0;
+		$object_arg2 = 0;
 
 		// Form specific (pass)
 		if ( 'gform_after_submission' == $step_data[ 'gravityforms_trigger' ] ) {
 			// Get Object ID
 			$object_id = (int) $step_data[ 'gravityforms_form_id' ];
+			$object_arg1 = (int) $step_data[ 'gravityforms_field_id' ];
+			$object_arg2 = $step_data[ 'gravityforms_field_value' ];
 
 			$form = GFAPI::get_form($object_id);
 
@@ -278,94 +295,18 @@ function badgeos_gravityforms_save_step( $title, $step_id, $step_data ) {
 				$title = __( 'Completed any form', 'badgeos-gravityforms' );
 			}
 			else {
-				$title = sprintf( __( 'Completed form "%s"', 'badgeos-gravityforms' ), $form['title'] );
-			}
-		}
-		// Form specific (grade specific)
-		elseif ( 'badgeos_gravityforms_form_completed_specific' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_form_id' ];
-			$object_arg1 = (int) $step_data[ 'gravityforms_form_grade' ];
-
-			$form = GFAPI::get_form($object_id);
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = sprintf( __( 'Completed forms with field %s', 'badgeos-gravityforms' ), $object_arg1 );
-			}
-			else {
-				$title = sprintf( __( 'Completed "%s" with field %d', 'badgeos-gravityforms' ), $form['title'], $object_arg1 );
-			}
-		}
-		// Form specific (fail)
-		elseif ( 'badgeos_gravityforms_form_completed_fail' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_form_id' ];
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = sprintf( __( 'Failed any form', 'badgeos-gravityforms' ), $object_arg1 );
-			}
-			else {
-				$title = sprintf( __( 'Failed form "%s"', 'badgeos-gravityforms' ), get_the_title( $object_id ), $object_arg1 );
-			}
-		}
-		// Lesson specific
-		elseif ( 'gravityforms_lesson_completed' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_lesson_id' ];
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = __( 'Completed any lesson', 'badgeos-gravityforms' );
-			}
-			else {
-				$title = sprintf( __( 'Completed lesson "%s"', 'badgeos-gravityforms' ), get_the_title( $object_id ) );
-			}
-		}
-		// Topic specific
-		elseif ( 'gravityforms_topic_completed' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_topic_id' ];
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = __( 'Completed any topic', 'badgeos-gravityforms' );
-			}
-			else {
-				$title = sprintf( __( 'Completed topic "%s"', 'badgeos-gravityforms' ), get_the_title( $object_id ) );
-			}
-		}
-		// Course specific
-		elseif ( 'gravityforms_course_completed' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_course_id' ];
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = __( 'Completed any course', 'badgeos-gravityforms' );
-			}
-			else {
-				$title = sprintf( __( 'Completed course "%s"', 'badgeos-gravityforms' ), get_the_title( $object_id ) );
-			}
-		}
-		// Course Category specific
-		elseif ( 'badgeos_gravityforms_course_completed_tag' == $step_data[ 'gravityforms_trigger' ] ) {
-			// Get Object ID
-			$object_id = (int) $step_data[ 'gravityforms_course_category_id' ];
-
-			// Set new step title
-			if ( empty( $object_id ) ) {
-				$title = __( 'Completed course in any tag', 'badgeos-gravityforms' );
-			}
-			else {
-				$title = sprintf( __( 'Completed course in tag "%s"', 'badgeos-gravityforms' ), get_term( $object_id, 'post_tag' )->name );
+				if ( !empty( $object_arg2 ) ) {
+					$title = sprintf( __( 'Completed form "%s" with %s', 'badgeos-gravityforms' ), $form['title'], $object_arg2 );
+				} else {
+					$title = sprintf( __( 'Completed form "%s"', 'badgeos-gravityforms' ), $form['title'] );
+				}
 			}
 		}
 
-		// Store our Object ID in meta
+		// Store our Form Data in meta
 		update_post_meta( $step_id, '_badgeos_gravityforms_object_id', $object_id );
 		update_post_meta( $step_id, '_badgeos_gravityforms_object_arg1', $object_arg1 );
+		update_post_meta( $step_id, '_badgeos_gravityforms_object_arg2', $object_arg2 );
 	}
 
 	// Send back our custom title
@@ -404,10 +345,7 @@ function badgeos_gravityforms_step_js() {
 			// Listen for our change to our trigger type selector
 			$( document ).on( 'change', '.select-gravityforms-trigger,' +
 										'.select-form-id,' +
-										'.select-lesson-id,' +
-										'.select-topic-id,' +
-										'.select-course-id,' +
-										'.select-course-category-id', function () {
+										'.input-field-id', function () {
 
 				badgeos_gravityforms_step_change( $( this ) );
 
@@ -422,11 +360,8 @@ function badgeos_gravityforms_step_js() {
 				step_details.gravityforms_trigger_label = $( '.select-gravityforms-trigger option', step ).filter( ':selected' ).text();
 
 				step_details.gravityforms_form_id = $( '.select-form-id', step ).val();
-				step_details.gravityforms_form_grade = $( '.input-form-grade', step ).val();
-				step_details.gravityforms_lesson_id = $( '.select-lesson-id', step ).val();
-				step_details.gravityforms_topic_id = $( '.select-topic-id', step ).val();
-				step_details.gravityforms_course_id = $( '.select-course-id', step ).val();
-				step_details.gravityforms_course_category_id = $( '.select-course-category-id', step ).val();
+				step_details.gravityforms_field_id = $( '.input-field-id', step ).val();
+				step_details.gravityforms_field_value = $( '.input-field-value', step ).val();
 			} );
 
 		} );
@@ -438,45 +373,16 @@ function badgeos_gravityforms_step_js() {
 				// Form specific
 				trigger_parent.find( '.select-form-id' )
 					.toggle(
-						( 'gform_after_submission' == trigger_value
-						 || 'badgeos_gravityforms_form_completed_specific' == trigger_value
-						 || 'badgeos_gravityforms_form_completed_fail' == trigger_value )
+						( 'gform_after_submission' == trigger_value )
 					);
 
-				// Lesson specific
-				trigger_parent.find( '.select-lesson-id' )
-					.toggle( 'gravityforms_lesson_completed' == trigger_value );
-
-				// Topic specific
-				trigger_parent.find( '.select-topic-id' )
-					.toggle( 'gravityforms_topic_completed' == trigger_value );
-
-				// Course specific
-				trigger_parent.find( '.select-course-id' )
-					.toggle( 'gravityforms_course_completed' == trigger_value );
-
-				// Course Category specific
-				trigger_parent.find( '.select-course-category-id' )
-					.toggle( 'badgeos_gravityforms_course_completed_tag' == trigger_value );
-
-				// Form Grade specific
-				trigger_parent.find( '.input-form-grade' ).parent() // target parent span
-					.toggle( 'badgeos_gravityforms_form_completed_specific' == trigger_value );
+				trigger_parent.find( '.input-field-id' )
+					.toggle( 'gform_after_submission' == trigger_value );
+				trigger_parent.find( '.input-field-value' )
+					.toggle( 'gform_after_submission' == trigger_value );
 
 				if ( ( 'gform_after_submission' == trigger_value
-					   && '' != trigger_parent.find( '.select-form-id' ).val() )
-					 || ( 'badgeos_gravityforms_form_completed_specific' == trigger_value
-					   && '' != trigger_parent.find( '.select-form-id' ).val() )
-					 || ( 'badgeos_gravityforms_form_completed_fail' == trigger_value
-					   && '' != trigger_parent.find( '.select-form-id' ).val() )
-					 || ( 'gravityforms_lesson_completed' == trigger_value
-						  && '' != trigger_parent.find( '.select-lesson-id' ).val() )
-					 || ( 'gravityforms_topic_completed' == trigger_value
-						  && '' != trigger_parent.find( '.select-topic-id' ).val() )
-					 || ( 'gravityforms_course_completed' == trigger_value
-						  && '' != trigger_parent.find( '.select-course-id' ).val() )
-					 || ( 'badgeos_gravityforms_course_completed_tag' == trigger_value
-						  && '' != trigger_parent.find( '.select-course-category-id' ).val() ) ) {
+					   && '' != trigger_parent.find( '.select-form-id' ).val() ) ) {
 					trigger_parent.find( '.required-count' )
 						.val( '1' )
 						.prop( 'disabled', true );

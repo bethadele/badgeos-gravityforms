@@ -48,13 +48,8 @@ function badgeos_gravityforms_trigger_event() {
 	// Setup all our important variables
 	global $blog_id, $wpdb;
 
-// error_log('Inside badgeos_gravityforms_trigger_event');
-
 	// Setup args
 	$args = func_get_args();
-
-//  error_log('args: ' . print_r($args, true));
-	// These $args are ($entry, $form)
 
 	$userID = get_current_user_id();
 
@@ -89,15 +84,7 @@ function badgeos_gravityforms_trigger_event() {
 				AND meta_value = %s
 		", $this_trigger ) );
 
-// error_log( 'this_trigger ' . $this_trigger );
-// error_log('triggered_achievements: ' . print_r($triggered_achievements, true));
-
 	foreach ( $triggered_achievements as $achievement ) {
-// error_log( 'post_id ' . $achievement->post_id );
-// error_log( 'userID ' . $userID );
-// error_log( 'this_trigger ' . $this_trigger );
-// error_log( 'blog_id ' . $blog_id );
-// error_log( 'args ' . ' $entry, $form' );
 		badgeos_maybe_award_achievement_to_user( $achievement->post_id, $userID, $this_trigger, $blog_id, $args );
 	}
 }
@@ -143,13 +130,14 @@ function badgeos_gravityforms_user_deserves_gravityforms_step( $return, $user_id
 		$gravityforms_trigger = $requirements[ 'gravityforms_trigger' ];
 		$object_id = $requirements[ 'gravityforms_object_id' ];
 
-		// Extra arg handling for further expansion
 		$object_arg1 = null;
+		$object_arg2 = null;
 
 		if ( isset( $requirements[ 'gravityforms_object_arg1' ] ) )
 			$object_arg1 = $requirements[ 'gravityforms_object_arg1' ];
 
-		// $required_field = $requirements['gravityforms_???']
+		if ( isset( $requirements[ 'gravityforms_object_arg2' ] ) )
+			$object_arg2 = $requirements[ 'gravityforms_object_arg2' ];
 
 		// Object-specific triggers
 		$gravityforms_object_triggers = array(
@@ -183,16 +171,17 @@ function badgeos_gravityforms_user_deserves_gravityforms_step( $return, $user_id
 
 		// 	// Forcing count due to BadgeOS bug tracking triggers properly
 		// 	$requirements[ 'count' ] = 1;
-		// }error_log('-----------------');
+		// }
 
 		// TODO: Enable user to optionally specify form values that user must select
 		//       in order to trigger this achievement
-		if ( $gravityforms_triggered && isset( $gravityforms_object_triggers[ $gravityforms_trigger ] ) && 'form' == $gravityforms_object_triggers[ $gravityforms_trigger ] ) {
-			if ( 'gform_after_submission' == $gravityforms_trigger ) {
-				$required_field = $object_arg1[ 'field' ];
-				$required_value = $object_arg1[ 'value' ];
+		// && 'form' == $gravityforms_object_triggers[ $gravityforms_trigger ]
+		if ( $gravityforms_triggered && isset( $gravityforms_object_triggers[ $gravityforms_trigger ] ) ) {
+			if ( 'gform_after_submission' == $gravityforms_trigger && !empty( $object_arg1 ) ) {
+				$field_id = $object_arg1;
+				$field_value = $object_arg2;
 
-				if ( $entry_data[ $required_field ] != $required_value ) {
+				if ( $entry_data[ $field_id ] != $field_value ) {
 					$gravityforms_triggered = false;
 				}
 			}
